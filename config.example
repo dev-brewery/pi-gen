@@ -2,3 +2,5 @@ IMG_NAME='PHOTOFRAME'
 RELEASE=bookworm
 PHOTOFRAME_BRANCH=clean_ex_display_upgrade
 ENABLE_SSH=1
+FIRST_USER_NAME=photoframe
+FIRST_USER_PASS=photoframe
