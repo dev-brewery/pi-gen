@@ -2,31 +2,32 @@ Index: stage2/rootfs/boot/firmware/config.txt
 ===================================================================
 --- stage2.orig/rootfs/boot/firmware/config.txt
 +++ stage2/rootfs/boot/firmware/config.txt
-@@ -3,7 +3,7 @@
+@@ -3,12 +3,12 @@
  # Some settings may impact device functionality. See link above for details
-
+ 
  # Uncomment some or all of these to enable the optional hardware interfaces
 -#dtparam=i2c_arm=on
 +dtparam=i2c_arm=on
  #dtparam=i2s=on
  #dtparam=spi=on
-
-@@ -10,7 +10,7 @@
- #dtparam=spi=on
-
+ 
 -# Enable audio (loads snd_bcm2835)
 -dtparam=audio=on
 +# Uncomment to enable audio (loads snd_bcm2835)
 +#dtparam=audio=on
-
+ 
  # Additional overlays and parameters are documented
-@@ -33,3 +33,9 @@
+ # /boot/firmware/overlays/README
+@@ -33,6 +33,12 @@
  # Disable compensation for displays with overscan
  disable_overscan=1
-+
+ 
 +# Make sure screen is blank during boot
 +disable_splash=1
 +
 +# Allow 32bit framebuffer
 +framebuffer_ignore_alpha=1
-
++
+ # Run as fast as firmware / board allows
+ arm_boost=1
+ 
