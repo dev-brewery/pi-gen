@@ -1,0 +1,34 @@
+# ============================================================
+# Photoframe WiFi Configuration
+# ============================================================
+# Edit the two values below, save the file, then eject the SD
+# card and put it in your Pi. On first boot the Pi will read
+# this file, connect to your WiFi, and rename it to
+# wifi-config.txt.applied so you know it worked.
+#
+# If something goes wrong a file called wifi-config.txt.error
+# will appear next to this one with the reason.
+#
+# Notes:
+#  - Use a 2.4 GHz network. The Pi Zero W does not do 5 GHz.
+#  - SSID and PSK are case-sensitive.
+#  - Do NOT put quotes around the values.
+#  - Special characters (#, =, spaces) are fine as-is.
+#  - COUNTRY is an ISO 3166-1 alpha-2 code (US, GB, CA, DE, ...).
+#    Use the same country as your router.
+#
+# About the COUNTRY default:
+#   This image ships with US as the default regulatory domain. That is
+#   a deliberate project decision for the current release — the
+#   maintainers are US-based, and the kernel refuses to transmit until
+#   a country is set. If you are outside the US, CHANGE THE COUNTRY
+#   value below to your ISO 3166-1 alpha-2 code before booting, or
+#   your WiFi will associate on an incorrect regulatory domain.
+#   If multi-region support becomes a common feature request we'll
+#   revisit the default in a future release.
+# ============================================================
+
+[wifi]
+SSID=YOUR_SSID_HERE
+PSK=YOUR_PASSWORD_HERE
+COUNTRY=US

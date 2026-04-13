@@ -1,6 +1,31 @@
 IMG_NAME='PHOTOFRAME'
 RELEASE=bookworm
-PHOTOFRAME_BRANCH=clean_ex_display_upgrade
+export PHOTOFRAME_BRANCH=clean_ex_display_upgrade
 ENABLE_SSH=1
 FIRST_USER_NAME=photoframe
 FIRST_USER_PASS=photoframe
+
+# Do not run the piwiz first-boot rename wizard; we ship a pre-set user.
+DISABLE_FIRST_BOOT_USER_RENAME=1
+
+# WiFi regulatory domain. Required: without this, stage2/02-net-tweaks
+# leaves wpa_supplicant.conf without a country= line and the radio stays
+# rfkill-blocked on first boot.
+#
+# PROJECT DECISION: the shipped default is US. This is a deliberate choice
+# at this point in the project's life, not a universal recommendation. The
+# maintainers are US-based and this matches the bench test environment.
+# Users outside the US building their own images should change this to
+# their ISO 3166-1 alpha-2 country code (GB, DE, CA, JP, ...).
+# Non-US users running the pre-built release image can override the WiFi
+# country at runtime via the COUNTRY field in /boot/firmware/wifi-config.txt.
+#
+# If multi-region support becomes a recurring feature request we will
+# revisit and find a way to ship a region-neutral default (e.g. "00" plus
+# a more prominent prompt for the user to set their own). For now, US.
+WPA_COUNTRY=US
+
+# Stages 3-5 are skipped via SKIP / SKIP_IMAGES marker files in those
+# stage directories (see upstream pi-gen README "Build a Lite image").
+# We intentionally do NOT use STAGE_LIST here so copying this file to
+# ./config does not silently re-enable the desktop stages.

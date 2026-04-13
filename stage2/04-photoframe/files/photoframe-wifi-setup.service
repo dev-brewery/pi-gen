@@ -1,0 +1,15 @@
+[Unit]
+Description=Photoframe first-boot WiFi configuration
+DefaultDependencies=no
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=NetworkManager.service network-pre.target
+Wants=network-pre.target
+ConditionPathExists=!/var/lib/photoframe/wifi-configured
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/photoframe-wifi-setup
+
+[Install]
+WantedBy=multi-user.target

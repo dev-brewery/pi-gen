@@ -34,6 +34,29 @@ else
   popd
 fi
 
+# --- Track 2: headless WiFi setup, persistent journal ---
+
+# Ship the user-editable WiFi template on the boot partition.
+install -m 644 files/wifi-config.txt "${ROOTFS_DIR}/boot/firmware/wifi-config.txt"
+
+# Install the firstboot setup script and its systemd unit.
+install -D -m 755 files/photoframe-wifi-setup.sh \
+    "${ROOTFS_DIR}/usr/local/sbin/photoframe-wifi-setup"
+install -D -m 644 files/photoframe-wifi-setup.service \
+    "${ROOTFS_DIR}/etc/systemd/system/photoframe-wifi-setup.service"
+
+# State directory for the idempotency marker.
+install -d -m 755 "${ROOTFS_DIR}/var/lib/photoframe"
+
+# Enable persistent journald (volatile by default; loses first-boot logs).
+install -d -m 2755 "${ROOTFS_DIR}/var/log/journal"
+
+on_chroot << EOF
+systemctl enable photoframe-wifi-setup.service
+EOF
+
+# --- end Track 2 additions ---
+
 on_chroot << EOF
 cd /root/photoframe
 
