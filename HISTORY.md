@@ -349,6 +349,75 @@ The greyed-out Imager gear icon is a non-issue for our image. Every
 legitimate pre-boot customization is achievable by editing files on the
 FAT32 boot partition from Windows Explorer.
 
+### 9. `build-docker.sh` host qemu pre-check breaks Docker Desktop platforms
+
+**Symptom:** invoking `./build-docker.sh` from WSL2 (Ubuntu-24.04) with
+Docker Desktop providing the engine exits within seconds with:
+
+```
+qemu-arm-static not found (please install qemu-user-static)
+```
+
+even though the Docker daemon has perfectly working ARM execution support
+(verified by running an `arm32v6/alpine` container directly), and even
+though the pi-gen Docker image was built successfully one step earlier.
+The same script is reported to fail identically on macOS + Docker Desktop
+(RPi-Distro/pi-gen issue #760, open since March 2024). The script never
+gets as far as starting the build container.
+
+**Root cause:** upstream PR #685 added a host-side pre-check at
+`build-docker.sh:117-140` that calls `which qemu-arm-static`, mounts
+`/proc/sys/fs/binfmt_misc` if needed, and registers a `qemu-arm-rpi`
+binfmt handler in the host's kernel. The intent was a "fail fast" so users
+on bare-Linux Docker would get a clear error instead of a confusing
+mid-build failure. The implementation has two compounding problems:
+
+1. **It assumes the host kernel runs the container.** True on native Linux
+   Docker. False on every Docker Desktop platform: the daemon runs in its
+   own Linux VM (HyperV-backed on Windows, an Apple Hypervisor VM on
+   macOS, the `docker-desktop` distro on WSL2). Whatever binfmt
+   registrations exist in the host kernel are irrelevant — the container
+   will execute against a different kernel that has its own binfmt_misc
+   namespace. The check fires on the wrong kernel.
+
+2. **It is redundant with the in-container path.** `build-docker.sh:153`
+   already runs `dpkg-reconfigure qemu-user-static` *inside* the container
+   under `--privileged`. That re-runs the qemu-user-static postinst, which
+   walks `/usr/bin/qemu-*-static` and writes binfmt_misc registrations to
+   `/proc/sys/fs/binfmt_misc/register` — in whatever kernel the daemon is
+   running, which is the kernel that actually matters. The pi-gen
+   Dockerfile installs qemu-user-static, so the binaries are present. The
+   in-container path is the authoritative one and it works on all
+   platforms.
+
+The host check is therefore both *wrong on Docker Desktop* and
+*unnecessary on native Linux*. Together those make it indefensible as
+written.
+
+**Fix:** delete `build-docker.sh:117-140` outright (the entire
+`binfmt_misc_required` block from `# Check if binfmt_misc is required`
+through the `qemu-arm-rpi` registration `fi`), and add a header comment
+block to `build-docker.sh` documenting host-independence as the wrapper's
+contract. The comment specifically warns future maintainers not to
+re-introduce a host check, with a pointer to upstream issue #760 and to
+this HISTORY entry. The native build pathway (`./build.sh` →
+`dependencies_check ${BASE_DIR}/depends`) is untouched: it has its own
+`qemu-arm-static:qemu-user-static` line in `depends` and continues to
+gate native builders correctly. Committed on the
+`fix-host-independence` branch and merged into `bookworm-photoframe`.
+
+`BUILD.md` was also updated to make the host-independence claim explicit
+in the "Prerequisites" section.
+
+**Why upstream didn't catch it:** RPi-Distro/pi-gen's CI is native Linux
+where the check works. The same bug exists in upstream master and has
+been documented in their issue #760 since 2024 — community-proposed
+workarounds have all been environment-detection patches
+(`uname -s | grep Darwin`) rather than deletions. None landed. mrworf's
+1-2019 fork predates the bug entirely (87-line `build-docker.sh` with no
+qemu check); the dev-brewery rebuild adopted the modern RPi-Distro 175-
+line `build-docker.sh` and inherited the bug along with everything else.
+
 ## Design decisions carried forward
 
 Each of these is documented where it's implemented; this is a cross-reference
@@ -442,6 +511,10 @@ in these files:
 - `stage3/`, `stage4/`, `stage5/` — we added SKIP markers that upstream
   treats as local-only. Rebase will touch these if upstream modifies the
   stages themselves (which does happen on occasion for package updates)
+- `build-docker.sh` — host qemu / binfmt_misc pre-check removed and
+  header comment added documenting host-independence (see bug #9). When
+  rebasing on upstream, expect a conflict around the old lines 117-140
+  that should be resolved by keeping our deletion.
 
 When rebasing, verify the bugs in this HISTORY are still not re-introduced
 by the rebase:
@@ -451,6 +524,8 @@ by the rebase:
 4. `WPA_COUNTRY` is still in `config.example`
 5. The five SKIP markers are still present
 6. `photoframe-wifi-setup.sh` still has the 4-and-8 backslash escape
+7. `build-docker.sh` has no host-side `qemu-arm-static` / `binfmt_misc`
+   check and still has the host-independence header comment
 
 ## Pointers
 

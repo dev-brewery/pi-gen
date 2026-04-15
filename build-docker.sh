@@ -1,4 +1,29 @@
 #!/usr/bin/env bash
+#
+# pi-gen Docker wrapper.
+#
+# HOST REQUIREMENTS: Docker (with the ability to run privileged containers).
+# Nothing else. No qemu-user-static, no binfmt_misc setup, no kernel modules,
+# no quilt, no debootstrap. The pi-gen Docker image carries every build
+# dependency.
+#
+# This wrapper is INTENTIONALLY HOST-INDEPENDENT. The in-container
+# `dpkg-reconfigure qemu-user-static` invocation below registers binfmt_misc
+# handlers in whatever kernel the Docker daemon is running -- the host
+# kernel on native Linux, or Docker Desktop's Linux VM kernel on macOS,
+# Windows, and WSL2. The container runs --privileged so it has the
+# /proc/sys/fs/binfmt_misc write access required for that registration.
+#
+# If you are tempted to add a host-side qemu / binfmt_misc pre-check here:
+# please don't. A previous version of this script had one (upstream PR
+# #685) and it broke every Docker Desktop platform because the host does
+# not run the container -- the daemon's VM does. See RPi-Distro/pi-gen
+# issue #760, open since 2024 for the same reason. If you want a fail-fast
+# experience, improve the in-container error path instead.
+#
+# Native (non-Docker) builds via ./build.sh have their own host dependency
+# check via depends + scripts/dependencies_check; that pathway is unchanged.
+#
 # Note: Avoid usage of arrays as MacOS users have an older version of bash (v3.x) which does not supports arrays
 set -eu
 
@@ -103,41 +128,9 @@ else
   DOCKER_CMDLINE_POST=""
 fi
 
-# Check if binfmt_misc is required
-binfmt_misc_required=1
-case $(uname -m) in
-  aarch64)
-    binfmt_misc_required=0
-    ;;
-  arm*)
-    binfmt_misc_required=0
-    ;;
-esac
-
-# Check if qemu-arm-static and /proc/sys/fs/binfmt_misc are present
-if [[ "${binfmt_misc_required}" == "1" ]]; then
-  if ! qemu_arm=$(which qemu-arm-static) ; then
-    echo "qemu-arm-static not found (please install qemu-user-static)"
-    exit 1
-  fi
-  if [ ! -f /proc/sys/fs/binfmt_misc/register ]; then
-    echo "binfmt_misc required but not mounted, trying to mount it..."
-    if ! mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc ; then
-        echo "mounting binfmt_misc failed"
-        exit 1
-    fi
-    echo "binfmt_misc mounted"
-  fi
-  if ! grep -q "^interpreter ${qemu_arm}" /proc/sys/fs/binfmt_misc/qemu-arm* ; then
-    # Register qemu-arm for binfmt_misc
-    reg="echo ':qemu-arm-rpi:M::"\
-"\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:"\
-"\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:"\
-"${qemu_arm}:F' > /proc/sys/fs/binfmt_misc/register"
-    echo "Registering qemu-arm for binfmt_misc..."
-    sudo bash -c "${reg}" 2>/dev/null || true
-  fi
-fi
+# binfmt_misc registration happens inside the container via
+# `dpkg-reconfigure qemu-user-static` below. See header comment for why no
+# host-side pre-check lives here.
 
 trap 'echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${DOCKER_CMDLINE_NAME}' SIGINT SIGTERM
 time ${DOCKER} run \
