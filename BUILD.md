@@ -4,9 +4,17 @@ This branch produces a Raspberry Pi OS Bookworm Lite image with the photoframe a
 
 ## Prerequisites
 
-- Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+- Docker Desktop (Windows/Mac) **or** Docker Engine (Linux), with the ability to run privileged containers
 - WSL 2 backend enabled (Windows only)
 - Git
+
+That's it. You do **not** need `qemu-user-static`, `binfmt_misc`, `quilt`,
+`debootstrap`, or any other build dependency installed on the host. The
+pi-gen Docker image carries everything the build needs, and registers
+binfmt_misc handlers from inside the container under `--privileged`.
+
+If you prefer a native (non-Docker) build, use `./build.sh` instead — that
+pathway has its own host dependency requirements documented in `depends`.
 
 ## Build Steps
 
