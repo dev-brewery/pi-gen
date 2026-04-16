@@ -257,6 +257,21 @@ convention for `SKIP` files assumes downstream users make per-build choices
 about which stages to run. The fork's model is different: always Lite,
 never the others.
 
+**2026-04 update — the absoluteness is now obsolete for stage3/4:** the
+`PHOTOFRAME_TARGET=lite|desktop` framework (see "Design decisions carried
+forward" → "PHOTOFRAME_TARGET selects the build target") opts back into
+stage3/4 for desktop builds at runtime, after the photoframe display
+module gained a `systemctl stop lightdm` call in its `_modern_enable`
+path (photoframe commit `e9e2ad9`). The `/dev/fb0` conflict that made
+stage3/4 "actively wrong" no longer exists — frame.service is ordered
+`After=lightdm.service` and stops lightdm before grabbing the framebuffer.
+The committed SKIP files in stage3/4 now serve as a defense-in-depth
+safety net (any pathway that doesn't explicitly opt into desktop falls
+back to lite), and `build-docker.sh` removes them at runtime when
+`PHOTOFRAME_TARGET=desktop`, restoring them on exit. **`stage5/SKIP` and
+`stage5/SKIP_IMAGES` remain absolute** — the Full image with LibreOffice
+etc. is still never wanted for any photoframe target.
+
 ### 6. Bash parameter expansion for backslash doubling needs four-and-eight counts
 
 **Symptom:** initial attempts to escape `\` → `\\` in the PSK before writing
@@ -423,6 +438,52 @@ line `build-docker.sh` and inherited the bug along with everything else.
 Each of these is documented where it's implemented; this is a cross-reference
 so a future maintainer looking at any one of these decisions in the source
 can find the rationale.
+
+### `PHOTOFRAME_TARGET` selects the build target (lite vs desktop)
+
+Historically the fork only ever produced one image: a Lite build with
+photoframe owning `/dev/fb0` end-to-end (see bug #5 for why the desktop
+stages were originally `SKIP`'d as "actively wrong"). The lightdm-stop
+work in photoframe commit `e9e2ad9` made desktop coexistence possible:
+`frame.service` is ordered `After=lightdm.service`, and
+`modules/display.py:_modern_enable(True)` runs `systemctl stop
+lightdm.service` before grabbing the framebuffer. That unblocks shipping
+a Desktop image where photoframe still runs by default but the desktop is
+reachable as a fallback (stop frame.service to recover lightdm).
+
+The mechanism is a single env var, `PHOTOFRAME_TARGET`, with two valid
+values:
+
+- **`lite`** (default, back-compat) — `STAGE_LIST="stage0 stage1 stage2"`,
+  `stage2/04-photoframe/01-run.sh` disables `getty@tty1.service` and masks
+  `plymouth-start.service` for a clean appliance boot. Single ~810 MB
+  zip, ~50 min build.
+- **`desktop`** — `STAGE_LIST="stage0 stage1 stage2 stage3 stage4"`,
+  `stage2/04-photoframe/01-run.sh` leaves `getty@tty1` enabled (recovery
+  VT) and `plymouth-start` unmasked (Bookworm boot splash). Build
+  produces both the Desktop image (~1.7 GB) and the Lite image as a
+  byproduct of stage2's `EXPORT_IMAGE` (~810 MB extra). ~80-100 min build.
+
+`PHOTOFRAME_TARGET` is **`export`ed** in `config.example` for the same
+reason `PHOTOFRAME_BRANCH` is exported (see bug #2): pi-gen subshells
+inherit only the environment, not shell-locals from sourced config files,
+so `stage2/04-photoframe/01-run.sh` would never see the value otherwise.
+
+`STAGE_LIST` in `config.example` is the in-process iteration control;
+`build-docker.sh` additionally removes `stage3/SKIP`, `stage4/SKIP`, and
+`stage4/SKIP_IMAGES` at runtime when target=desktop, restoring them on
+exit via an `EXIT` trap so the working tree stays clean. The committed
+SKIP files are the at-rest defense-in-depth backstop — any pathway that
+bypasses STAGE_LIST (custom config, env override, sourcing failure)
+falls back to lite. Both layers must agree to enable desktop, which is
+the point.
+
+`stage5/SKIP` and `stage5/SKIP_IMAGES` remain absolute — the Full image
+is never wanted for any photoframe target.
+
+See `config.example`, `build-docker.sh` (the `restore_skips` block), and
+`stage2/04-photoframe/01-run.sh` (the `[ "${PHOTOFRAME_TARGET}" = "lite" ]`
+guard).
 
 ### `wifi-config.txt` uses INI format with a `[wifi]` section
 

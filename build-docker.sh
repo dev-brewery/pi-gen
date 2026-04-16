@@ -29,7 +29,26 @@ set -eu
 
 DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 
-BUILD_OPTS="$*"
+# Parse optional build target (lite|desktop) from the command line.
+# The target is consumed here so it never reaches build.sh inside the
+# container via BUILD_OPTS.
+#
+# Usage:
+#   ./build-docker.sh                     # lite (default)
+#   ./build-docker.sh desktop             # both Lite + Desktop images
+#   ./build-docker.sh -c myconfig desktop # custom config + desktop
+PHOTOFRAME_TARGET_ARG=""
+BUILD_OPTS=""
+for arg in "$@"; do
+	case "$arg" in
+		lite|desktop)
+			PHOTOFRAME_TARGET_ARG="$arg"
+			;;
+		*)
+			BUILD_OPTS="${BUILD_OPTS:+${BUILD_OPTS} }${arg}"
+			;;
+	esac
+done
 
 # Allow user to override docker command
 DOCKER=${DOCKER:-docker}
@@ -75,6 +94,16 @@ if test -z "${CONFIG_FILE}"; then
 else
 	# shellcheck disable=SC1090
 	source ${CONFIG_FILE}
+fi
+
+# CLI target argument overrides the config file default.
+if [ -n "${PHOTOFRAME_TARGET_ARG}" ]; then
+	export PHOTOFRAME_TARGET="${PHOTOFRAME_TARGET_ARG}"
+	case "${PHOTOFRAME_TARGET}" in
+		lite)    STAGE_LIST="stage0 stage1 stage2" ;;
+		desktop) STAGE_LIST="stage0 stage1 stage2 stage3 stage4" ;;
+	esac
+	export STAGE_LIST
 fi
 
 CONTAINER_NAME=${CONTAINER_NAME:-pigen_work}
@@ -132,7 +161,32 @@ fi
 # `dpkg-reconfigure qemu-user-static` below. See header comment for why no
 # host-side pre-check lives here.
 
-trap 'echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${DOCKER_CMDLINE_NAME}' SIGINT SIGTERM
+# Manage stage3/4 SKIP markers for the desktop target.
+#
+# stage3/SKIP, stage4/SKIP, and stage4/SKIP_IMAGES are committed at rest
+# as a safety net: any pathway that does not explicitly opt into
+# PHOTOFRAME_TARGET=desktop will skip the desktop stages even if STAGE_LIST
+# from config.example never gets set. When PHOTOFRAME_TARGET=desktop,
+# remove the markers for the duration of the build and restore them on
+# exit (success, failure, or signal) so the working tree stays clean.
+SKIPS_TO_RESTORE=""
+restore_skips() {
+	local f
+	for f in ${SKIPS_TO_RESTORE}; do
+		[ -e "${DIR}/${f}" ] || touch "${DIR}/${f}"
+	done
+}
+trap restore_skips EXIT
+if [ "${PHOTOFRAME_TARGET:-lite}" = "desktop" ]; then
+	for f in stage3/SKIP stage4/SKIP stage4/SKIP_IMAGES; do
+		if [ -f "${DIR}/${f}" ]; then
+			SKIPS_TO_RESTORE="${SKIPS_TO_RESTORE} ${f}"
+			rm "${DIR}/${f}"
+		fi
+	done
+fi
+
+trap 'restore_skips; echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${DOCKER_CMDLINE_NAME}' SIGINT SIGTERM
 time ${DOCKER} run \
   $DOCKER_CMDLINE_PRE \
   --name "${DOCKER_CMDLINE_NAME}" \
