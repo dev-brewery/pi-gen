@@ -5,6 +5,41 @@ ENABLE_SSH=1
 FIRST_USER_NAME=photoframe
 FIRST_USER_PASS=photoframe
 
+# Build target: 'lite' (default) or 'desktop'.
+#
+#   lite    -> Raspberry Pi OS Lite + photoframe. The framebuffer is
+#              owned by photoframe end-to-end; getty@tty1 is disabled
+#              and plymouth-start is masked. Smallest image (~810 MB),
+#              fastest build, the appliance default.
+#
+#   desktop -> Raspberry Pi OS Desktop (stage4) + photoframe. lightdm
+#              is installed, but frame.service is ordered After=lightdm
+#              and modules/display.py stops lightdm at frame startup
+#              so the photoframe still owns the screen by default. The
+#              desktop is reachable as a fallback by stopping
+#              frame.service. getty@tty1 stays enabled (recovery VT)
+#              and plymouth-start stays unmasked (boot splash). Larger
+#              image (~1.7 GB Desktop + ~810 MB Lite byproduct from
+#              stage2's EXPORT_IMAGE), longer build (~80-100 min).
+#
+# Must be `export`ed (see HISTORY bug #2: subshells inherit only the
+# environment, not shell-locals from sourced config files).
+export PHOTOFRAME_TARGET="${PHOTOFRAME_TARGET:-lite}"
+
+case "${PHOTOFRAME_TARGET}" in
+  lite)
+    STAGE_LIST="stage0 stage1 stage2"
+    ;;
+  desktop)
+    STAGE_LIST="stage0 stage1 stage2 stage3 stage4"
+    ;;
+  *)
+    echo "config: invalid PHOTOFRAME_TARGET='${PHOTOFRAME_TARGET}' (expected 'lite' or 'desktop')" >&2
+    exit 1
+    ;;
+esac
+export STAGE_LIST
+
 # Do not run the piwiz first-boot rename wizard; we ship a pre-set user.
 DISABLE_FIRST_BOOT_USER_RENAME=1
 
@@ -25,7 +60,9 @@ DISABLE_FIRST_BOOT_USER_RENAME=1
 # a more prominent prompt for the user to set their own). For now, US.
 WPA_COUNTRY=US
 
-# Stages 3-5 are skipped via SKIP / SKIP_IMAGES marker files in those
-# stage directories (see upstream pi-gen README "Build a Lite image").
-# We intentionally do NOT use STAGE_LIST here so copying this file to
-# ./config does not silently re-enable the desktop stages.
+# Stage selection is driven by PHOTOFRAME_TARGET above (which sets
+# STAGE_LIST). Stage5 (Full image with LibreOffice etc.) is permanently
+# off via committed SKIP / SKIP_IMAGES marker files in stage5/, never
+# wanted for any photoframe target. Stage3 / stage4 SKIPs were removed
+# in the desktop-target work so that PHOTOFRAME_TARGET=desktop can
+# reach them via STAGE_LIST.

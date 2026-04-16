@@ -1,10 +1,25 @@
 #!/bin/bash -e
 
-# Disable first console and boot messages
-on_chroot << EOF
+# Lite-target hardening: when photoframe owns the framebuffer end-to-end
+# (no display manager installed), the tty1 getty and the plymouth boot
+# splash are pure visual noise that briefly fight for /dev/fb0 before
+# frame.service comes up. Disable both for a clean Lite boot.
+#
+# On the desktop target (stage4 installs lightdm), keep both enabled:
+# - getty@tty1 is the recovery VT (Ctrl+Alt+F1) when the graphical stack
+#   is broken; lightdm uses its own VT so there's no conflict.
+# - plymouth-start drives the Bookworm boot splash before lightdm and
+#   frame.service come up; masking it would leave a black screen for the
+#   first ~5 seconds of every boot.
+#
+# PHOTOFRAME_TARGET is exported by config.example (see HISTORY bug #2 for
+# the export-vs-shell-local subtlety; the same fix applies here).
+if [ "${PHOTOFRAME_TARGET:-lite}" = "lite" ]; then
+	on_chroot << EOF
 systemctl disable getty@tty1.service
 systemctl mask plymouth-start.service
 EOF
+fi
 
 # Create config folder
 mkdir -p ${ROOTFS_DIR}/root/photoframe_config

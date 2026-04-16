@@ -1,4 +1,4 @@
-# Building the Photoframe Image
+# Building the Photoframe Image (Lite or Desktop)
 
 This branch produces a Raspberry Pi OS Bookworm Lite image with the photoframe application pre-installed.
 
@@ -40,9 +40,28 @@ IMG_NAME='PHOTOFRAME'
 RELEASE=bookworm
 PHOTOFRAME_BRANCH=clean_ex_display_upgrade
 ENABLE_SSH=1
+PHOTOFRAME_TARGET=lite
 ```
 
 `PHOTOFRAME_BRANCH` controls which branch of the [photoframe repository](https://github.com/dev-brewery/photoframe) is cloned into the image.
+
+`PHOTOFRAME_TARGET` selects the build target. Valid values:
+
+- `lite` (default) — Raspberry Pi OS Lite + photoframe. The framebuffer
+  is owned by photoframe end-to-end (no display manager). Single ~810 MB
+  image, ~50 min build.
+- `desktop` — Raspberry Pi OS Desktop (stage4) + photoframe. lightdm is
+  installed but frame.service stops it at boot, so photoframe still owns
+  the screen by default. The desktop is reachable as a fallback by
+  stopping frame.service. Produces both the Desktop image (~1.7 GB) and
+  the Lite image (~810 MB), as pi-gen naturally exports an image at the
+  end of each stage that has an `EXPORT_IMAGE` file. ~80-100 min build.
+
+To build a desktop image, pass `desktop` to `build-docker.sh`:
+
+```bash
+./build-docker.sh desktop
+```
 
 ### 3. Skip desktop stages
 
@@ -52,6 +71,13 @@ The photoframe image is based on Raspbian Lite (stage 2 only). Create empty SKIP
 touch stage3/SKIP stage4/SKIP stage5/SKIP
 ```
 
+> **Note (v3.0.0+):** The SKIP files for stages 3-5 are now committed in
+> the repository by default, so this manual step is no longer required for
+> Lite builds. For Desktop builds, `build-docker.sh` removes the stage3/4
+> SKIP files automatically when `desktop` is passed as an argument, and
+> restores them on exit. You should not need to touch SKIP files manually
+> unless you have deleted them from your working tree.
+
 ### 4. Build with Docker
 
 ```bash
@@ -59,6 +85,7 @@ touch stage3/SKIP stage4/SKIP stage5/SKIP
 ```
 
 The build takes 30-60 minutes depending on your machine. The finished image will be in the `deploy/` directory.
+A `lite` build takes ~50 minutes; a `desktop` build takes ~80-100 minutes.
 
 ### 5. Flash the image
 
@@ -83,6 +110,10 @@ Copy-Item config.example config
 New-Item -ItemType File stage3/SKIP, stage4/SKIP, stage5/SKIP
 bash ./build-docker.sh
 ```
+
+> **Note (v3.0.0+):** The SKIP files are now committed in the repository,
+> so the `New-Item` line above is no longer required. For Desktop builds,
+> pass `desktop` to the build script: `bash ./build-docker.sh desktop`
 
 ## Rebuilding after changes
 
