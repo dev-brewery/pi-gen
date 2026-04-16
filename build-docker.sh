@@ -145,30 +145,16 @@ case "$(uname -m)" in
     BASE_IMAGE=debian:bookworm
     ;;
 esac
-${DOCKER} build --build-arg BASE_IMAGE=${BASE_IMAGE} -t pi-gen "${DIR}"
-
-if [ "${CONTAINER_EXISTS}" != "" ]; then
-  DOCKER_CMDLINE_NAME="${CONTAINER_NAME}_cont"
-  DOCKER_CMDLINE_PRE="--rm"
-  DOCKER_CMDLINE_POST="--volumes-from=${CONTAINER_NAME}"
-else
-  DOCKER_CMDLINE_NAME="${CONTAINER_NAME}"
-  DOCKER_CMDLINE_PRE=""
-  DOCKER_CMDLINE_POST=""
-fi
-
-# binfmt_misc registration happens inside the container via
-# `dpkg-reconfigure qemu-user-static` below. See header comment for why no
-# host-side pre-check lives here.
-
 # Manage stage3/4 SKIP markers for the desktop target.
 #
 # stage3/SKIP, stage4/SKIP, and stage4/SKIP_IMAGES are committed at rest
 # as a safety net: any pathway that does not explicitly opt into
 # PHOTOFRAME_TARGET=desktop will skip the desktop stages even if STAGE_LIST
 # from config.example never gets set. When PHOTOFRAME_TARGET=desktop,
-# remove the markers for the duration of the build and restore them on
-# exit (success, failure, or signal) so the working tree stays clean.
+# remove the markers BEFORE docker build so that the Dockerfile's
+# COPY . /pi-gen/ does not bake them into the container image. The EXIT
+# trap restores them on the host when the build finishes (success, failure,
+# or signal) so the working tree stays clean.
 SKIPS_TO_RESTORE=""
 restore_skips() {
 	local f
@@ -185,6 +171,22 @@ if [ "${PHOTOFRAME_TARGET:-lite}" = "desktop" ]; then
 		fi
 	done
 fi
+
+${DOCKER} build --build-arg BASE_IMAGE=${BASE_IMAGE} -t pi-gen "${DIR}"
+
+if [ "${CONTAINER_EXISTS}" != "" ]; then
+  DOCKER_CMDLINE_NAME="${CONTAINER_NAME}_cont"
+  DOCKER_CMDLINE_PRE="--rm"
+  DOCKER_CMDLINE_POST="--volumes-from=${CONTAINER_NAME}"
+else
+  DOCKER_CMDLINE_NAME="${CONTAINER_NAME}"
+  DOCKER_CMDLINE_PRE=""
+  DOCKER_CMDLINE_POST=""
+fi
+
+# binfmt_misc registration happens inside the container via
+# `dpkg-reconfigure qemu-user-static` below. See header comment for why no
+# host-side pre-check lives here.
 
 trap 'restore_skips; echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${DOCKER_CMDLINE_NAME}' SIGINT SIGTERM
 time ${DOCKER} run \
