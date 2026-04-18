@@ -1,4 +1,20 @@
-# pi-gen
+# dev-brewery/pi-gen — photoframe build
+
+> This is the `dev-brewery` fork of [`RPi-Distro/pi-gen`](https://github.com/RPi-Distro/pi-gen), tailored to build Raspberry Pi OS Bookworm Lite images with [`dev-brewery/photoframe`](https://github.com/dev-brewery/photoframe) pre-installed and configured for headless first boot. The rest of this README is the upstream pi-gen documentation, which still applies to the underlying tool.
+>
+> **Fork-specific docs, read these first:**
+>
+> - **[BUILD.md](BUILD.md)** — how to build a photoframe image (Docker Desktop / WSL2 / native Linux).
+> - **[RELEASE.md](RELEASE.md)** — the release-cadence contract with photoframe (pi-gen tags mirror photoframe release tags; `config.example` bumped in lockstep; pi-gen tag must exist before the matching photoframe tag is pushed).
+> - **[HISTORY.md](HISTORY.md)** — why this fork exists, nine bugs fixed vs upstream, design decisions a future maintainer must not accidentally undo.
+>
+> **Active branch:** `bookworm-photoframe` (default). All substantive work lives here. `photoframe-legacy-2026-04` is an archived snapshot retained for the GitHub branch-rename redirect.
+>
+> **Paired release tags:** every photoframe `vX.Y.Z[-rcN]` release has a matching pi-gen tag on `bookworm-photoframe`. `v3.0.0-rc1` is the first such tag.
+
+---
+
+# pi-gen (upstream documentation)
 
 Tool used to create Raspberry Pi OS images, and custom images based on Raspberry Pi OS,
 which was in turn derived from the Raspbian project.

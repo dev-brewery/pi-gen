@@ -33,17 +33,19 @@ Copy the example config:
 cp config.example config
 ```
 
-Edit `config` if you need to change the photoframe branch:
+Edit `config` if you need to build against a different photoframe ref:
 
 ```
 IMG_NAME='PHOTOFRAME'
 RELEASE=bookworm
-PHOTOFRAME_BRANCH=clean_ex_display_upgrade
+PHOTOFRAME_BRANCH=v3.0.0-rc1
 ENABLE_SSH=1
 PHOTOFRAME_TARGET=lite
 ```
 
-`PHOTOFRAME_BRANCH` controls which branch of the [photoframe repository](https://github.com/dev-brewery/photoframe) is cloned into the image.
+`PHOTOFRAME_BRANCH` names the photoframe ref (a release tag, or any branch/SHA git accepts) that gets cloned into the image at build time. The default is the photoframe release tag paired with this pi-gen tag — so `git clone --branch vX.Y.Z pi-gen && cp config.example config && ./build-docker.sh` reproduces the matching release image with zero overrides. Override to build against a feature branch or unreleased commit.
+
+See [`RELEASE.md`](RELEASE.md) for the release-cadence contract between photoframe and pi-gen.
 
 `PHOTOFRAME_TARGET` selects the build target. Valid values:
 
