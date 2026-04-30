@@ -1,5 +1,5 @@
 IMG_NAME='PHOTOFRAME'
-RELEASE=bookworm
+RELEASE=bullseye
 export PHOTOFRAME_BRANCH=clean_ex_display_upgrade
 ENABLE_SSH=1
 FIRST_USER_NAME=photoframe
@@ -53,7 +53,7 @@ DISABLE_FIRST_BOOT_USER_RENAME=1
 # Users outside the US building their own images should change this to
 # their ISO 3166-1 alpha-2 country code (GB, DE, CA, JP, ...).
 # Non-US users running the pre-built release image can override the WiFi
-# country at runtime via the COUNTRY field in /boot/firmware/wifi-config.txt.
+# country at runtime via the COUNTRY field in /boot/wifi-config.txt.
 #
 # If multi-region support becomes a recurring feature request we will
 # revisit and find a way to ship a region-neutral default (e.g. "00" plus

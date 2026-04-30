@@ -1,20 +1,19 @@
 #!/bin/bash
-# photoframe-wifi-setup: consume /boot/firmware/wifi-config.txt on first boot
-# and write a NetworkManager keyfile so WiFi connects automatically.
+# photoframe-wifi-setup: consume /boot/wifi-config.txt on first boot and
+# write /etc/wpa_supplicant/wpa_supplicant.conf so WiFi connects automatically.
 #
 # Idempotent: a marker at /var/lib/photoframe/wifi-configured prevents re-run.
-# Invoked by photoframe-wifi-setup.service before NetworkManager starts.
+# Invoked by photoframe-wifi-setup.service before wpa_supplicant starts.
 
 set -u
 
-BOOT_DIR="/boot/firmware"
+BOOT_DIR="/boot"
 CFG="${BOOT_DIR}/wifi-config.txt"
 APPLIED="${BOOT_DIR}/wifi-config.txt.applied"
 ERR="${BOOT_DIR}/wifi-config.txt.error"
 MARKER_DIR="/var/lib/photoframe"
 MARKER="${MARKER_DIR}/wifi-configured"
-NM_DIR="/etc/NetworkManager/system-connections"
-NM_FILE="${NM_DIR}/photoframe-wifi.nmconnection"
+WPA_CONF="/etc/wpa_supplicant/wpa_supplicant.conf"
 
 log()  { echo "photoframe-wifi-setup: $*" >&2; }
 fail() { echo "$*" > "${ERR}"; log "ERROR: $*"; exit 0; }   # exit 0: don't block boot
@@ -85,60 +84,28 @@ if [ ${#PSK} -lt 8 ] || [ ${#PSK} -gt 63 ]; then
     fail "PSK must be 8-63 characters (got ${#PSK})"
 fi
 
-UUID=$(cat /proc/sys/kernel/random/uuid)
+# Escape double quotes and backslashes for wpa_supplicant quoted strings.
+SSID=${SSID//\\/\\\\}
+SSID=${SSID//\"/\\\"}
+PSK=${PSK//\\/\\\\}
+PSK=${PSK//\"/\\\"}
+
 umask 077
-mkdir -p "${NM_DIR}"
+mkdir -p "$(dirname "${WPA_CONF}")"
 
-# Escape backslashes for GLib KeyFile format. A literal `\` in the value
-# must be written as `\\` so GLib's key_file_parse_value_as_string does
-# not interpret it as an unknown escape sequence (\s, \n, \t, \\ are the
-# only recognized escapes). Do this AFTER length validation so the user
-# sees the raw length in their error message, but BEFORE the heredoc so
-# the written keyfile is GLib-correct.
-#
-# The 4-and-8 backslash counts below are NOT a typo. Bash parameter
-# expansion ${var//pattern/replacement} processes the pattern as a glob,
-# and both pattern and replacement go through shell backslash removal
-# *twice* (once at the outer shell, once at the glob/replacement layer),
-# which consumes 4 source backslashes to produce 1 literal backslash at
-# the matching layer. So to match one `\` and replace with two `\\`, we
-# need 4 backslashes in the pattern and 8 in the replacement. Verified
-# experimentally against bash 5.x in WSL; variable-based forms like
-# PAT='\\'; ${v//$PAT/...} do NOT work — bash applies an additional
-# round of escape processing that swallows the backslashes.
-SSID=${SSID//\\\\/\\\\\\\\}
-PSK=${PSK//\\\\/\\\\\\\\}
+cat > "${WPA_CONF}" <<EOF
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+country=${COUNTRY}
 
-cat > "${NM_FILE}" <<EOF
-[connection]
-id=photoframe-wifi
-uuid=${UUID}
-type=wifi
-autoconnect=true
-
-[wifi]
-mode=infrastructure
-ssid=${SSID}
-
-[wifi-security]
-key-mgmt=wpa-psk
-psk=${PSK}
-
-[ipv4]
-method=auto
-
-[ipv6]
-method=auto
-addr-gen-mode=default
+network={
+    ssid="${SSID}"
+    psk="${PSK}"
+}
 EOF
 
-chown root:root "${NM_FILE}"
-chmod 600 "${NM_FILE}"
-
-# Best-effort regdom set; harmless if iw is missing or already set.
-if command -v iw >/dev/null 2>&1; then
-    iw reg set "${COUNTRY}" 2>/dev/null || true
-fi
+chown root:root "${WPA_CONF}"
+chmod 600 "${WPA_CONF}"
 
 # Redact PSK in the on-disk copy, then rename to .applied so the user
 # can see what happened without leaving plaintext on FAT32.
@@ -147,5 +114,5 @@ mv -f "${CFG}" "${APPLIED}"
 rm -f "${ERR}"
 
 touch "${MARKER}"
-log "wrote ${NM_FILE}, renamed config to $(basename "${APPLIED}")"
+log "wrote ${WPA_CONF}, renamed config to $(basename "${APPLIED}")"
 exit 0

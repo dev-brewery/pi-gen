@@ -8,7 +8,7 @@
 # On the desktop target (stage4 installs lightdm), keep both enabled:
 # - getty@tty1 is the recovery VT (Ctrl+Alt+F1) when the graphical stack
 #   is broken; lightdm uses its own VT so there's no conflict.
-# - plymouth-start drives the Bookworm boot splash before lightdm and
+# - plymouth-start drives the boot splash before lightdm and
 #   frame.service come up; masking it would leave a black screen for the
 #   first ~5 seconds of every boot.
 #
@@ -28,7 +28,7 @@ mkdir -p ${ROOTFS_DIR}/root/photoframe_config
 install -m 644 files/colortemp_info.txt ${ROOTFS_DIR}/root/photoframe_config/colortemp_info.txt
 
 # Add default authentication
-install -m 644 files/http-auth.json ${ROOTFS_DIR}/boot/firmware/http-auth.json
+install -m 644 files/http-auth.json ${ROOTFS_DIR}/boot/http-auth.json
 
 # Remove wait on network (may not exist on newer OS)
 rm -f ${ROOTFS_DIR}/etc/systemd/system/dhcpcd.service.d/wait.conf
@@ -52,7 +52,7 @@ fi
 # --- Track 2: headless WiFi setup, persistent journal ---
 
 # Ship the user-editable WiFi template on the boot partition.
-install -m 644 files/wifi-config.txt "${ROOTFS_DIR}/boot/firmware/wifi-config.txt"
+install -m 644 files/wifi-config.txt "${ROOTFS_DIR}/boot/wifi-config.txt"
 
 # Install the firstboot setup script and its systemd unit.
 install -D -m 755 files/photoframe-wifi-setup.sh \
