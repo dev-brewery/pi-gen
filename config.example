@@ -5,7 +5,7 @@ RELEASE=bookworm
 # pi-gen release, so `git clone --branch vX.Y.Z pi-gen && cp config.example
 # config && ./build-docker.sh` reproduces the matching photoframe image
 # with zero overrides. Override for feature-branch testing.
-export PHOTOFRAME_BRANCH=v3.0.0-rc1
+export PHOTOFRAME_BRANCH=3.0.0-rc2
 ENABLE_SSH=1
 FIRST_USER_NAME=photoframe
 FIRST_USER_PASS=photoframe
