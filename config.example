@@ -1,10 +1,13 @@
 IMG_NAME='PHOTOFRAME'
 RELEASE=bookworm
-# PHOTOFRAME_BRANCH tracks a photoframe release tag (not a feature
-# branch). This default is bumped in the same commit that tags each
-# pi-gen release, so `git clone --branch vX.Y.Z pi-gen && cp config.example
-# config && ./build-docker.sh` reproduces the matching photoframe image
-# with zero overrides. Override for feature-branch testing.
+# PHOTOFRAME_BRANCH names a photoframe release branch: the release tag
+# without its leading "v" (tag v3.0.0-rc2, branch 3.0.0-rc2). The image's
+# copy of photoframe is cloned from this branch and stays on it, so its
+# updater follows that branch. This default is bumped in the same commit
+# that tags each pi-gen release, so `git clone --branch vX.Y.Z pi-gen &&
+# cp config.example config && ./build-docker.sh` builds the matching
+# photoframe release with zero overrides. Override for feature-branch
+# testing.
 export PHOTOFRAME_BRANCH=3.0.0-rc2
 ENABLE_SSH=1
 FIRST_USER_NAME=photoframe
