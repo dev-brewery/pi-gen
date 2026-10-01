@@ -17,9 +17,11 @@ For each photoframe release `vX.Y.Z[-rcN]`:
 1. Land any build-tooling changes on `bookworm-photoframe` — new apt deps, Dockerfile tweaks, stage-script fixes, whatever this release requires.
 2. Bump `config.example`:
    ```
-   export PHOTOFRAME_BRANCH=<prev tag>   →   export PHOTOFRAME_BRANCH=<new tag>
+   export PHOTOFRAME_BRANCH=<prev release branch>   →   export PHOTOFRAME_BRANCH=<new release branch>
    ```
-   Commit message convention: `release: bump PHOTOFRAME_BRANCH to <tag>`.
+   The value is the photoframe release **branch**, which is the photoframe tag name without the leading `v`: for tag `v3.0.0-rc2` it is `3.0.0-rc2`. `stage2/04-photoframe/01-run.sh` clones photoframe from that branch, so the branch must already exist on `dev-brewery/photoframe`. The image's copy of photoframe stays on that branch, and its updater follows it.
+
+   Commit message convention: `release: bump PHOTOFRAME_BRANCH to <release branch>`.
 3. Push `bookworm-photoframe`.
 4. `git tag -a <tag> -m '<message>' bookworm-photoframe`
 5. `git push origin <tag>`
@@ -31,12 +33,14 @@ git clone --branch vX.Y.Z https://github.com/dev-brewery/pi-gen.git
 cd pi-gen
 cp config.example config
 ./build-docker.sh
-# builds photoframe vX.Y.Z with zero overrides
+# builds the image from photoframe's X.Y.Z release branch with zero overrides
 ```
 
 ## Ordering with photoframe
 
 **The pi-gen tag must exist before the photoframe tag is pushed.** Photoframe's `.github/workflows/build-image.yml` resolves `PI_GEN_REF` from `github.ref_name` on tag push, so it checks out pi-gen at the matching tag. If the pi-gen tag is missing, workflow checkout fails fast with a "ref not found" — this is the forcing function, not a bug.
+
+The photoframe release branch named by `PHOTOFRAME_BRANCH` must exist before both, at the commit being released. See photoframe's [RELEASE.md](https://github.com/dev-brewery/photoframe/blob/dev/RELEASE.md) for that side.
 
 ## Off-cycle pi-gen fixes
 
